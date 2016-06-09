@@ -28,8 +28,7 @@ if (typeof Object.create !== 'function') {
             posts_to_load_count = 0,
             loaded_post_count = 0,
             render_array = [],
-            pages_not_found = 0,
-            pages_forbidden = 0;
+            pages_not_found = 0;
         // container.empty().css('display', 'block');
         //---------------------------------------------------------------------------------
 
@@ -40,8 +39,6 @@ if (typeof Object.create !== 'function') {
                 if (options[network]) {
                     if (options[network].accounts) {
                         posts_to_load_count += options[network].limit * options[network].accounts.length;
-                        console.log("posts_to_load_count[" + network + ": " + posts_to_load_count);
-                        console.log("    " + options[network].limit + " " + options[network].accounts.length);
                     } else if (options[network].urls) {
                         posts_to_load_count += options[network].limit * options[network].urls.length;
                     } else {
@@ -52,7 +49,6 @@ if (typeof Object.create !== 'function') {
         }
 
         calculatePostsToLoadCount();
-        console.log("Post PostsToLoadCount: " + posts_to_load_count);
 
         function fireCallback() {
             var fire = true;
@@ -66,10 +62,7 @@ if (typeof Object.create !== 'function') {
         }
 
         function renderAll() {
-            console.log("RenderAll, render_array: " + render_array.length);
-            console.log("render_array: " + render_array);
             $.each(render_array, function (i, val) {
-                console.log(val.social_network + ": " + val.author_name + " " + val.dt_create);
                 render(val);
             });
 
@@ -135,7 +128,6 @@ if (typeof Object.create !== 'function') {
 
         var Utility = {
             request: function (url, callback) {
-                console.log("Utility.request: " + url);
                 $.ajax({
                     url: url,
                     dataType: 'jsonp',
@@ -194,13 +186,12 @@ if (typeof Object.create !== 'function') {
 
         SocialFeedPost.prototype = {
             pushData: function () {
-                console.log("SocialFeedPost.pushData: " + loaded_post_count + " posts_to_load_count: " + posts_to_load_count);
                 render_array.push(this.content);
 
                 if(this.content != null) {
                     loaded_post_count++;
                 }
-                console.log("pushData: loaded_post_count: " + loaded_post_count + " posts_to_load_count: " + posts_to_load_count);
+
                 if (loaded_post_count == posts_to_load_count) {
 
                     // sort array
@@ -223,16 +214,13 @@ if (typeof Object.create !== 'function') {
                                 //loaded[network] = 0;
                                 options[network].accounts.forEach(function (account) {
                                     //loaded[network]++;
-                                    console.log("Calling get data for accounts" + network + ": " + account);
                                     Feed[network].getData(account);
                                 });
                             } else if (options[network].urls) {
                                 options[network].urls.forEach(function (url) {
-                                    console.log("Calling get data for urls" + network + ": " + url);
                                     Feed[network].getData(url);
                                 });
                             } else {
-                                console.log("Calling get data for: " + network);
                                 Feed[network].getData();
                             }
                         }
@@ -260,7 +248,6 @@ if (typeof Object.create !== 'function') {
                 api: 'http://api.tweecool.com/',
 
                 getData: function (account) {
-                    console.log("Called twitter:getData");
                     var cb = new Codebird();
                     cb.setConsumerKey(options.twitter.consumer_key, options.twitter.consumer_secret);
 
@@ -272,7 +259,6 @@ if (typeof Object.create !== 'function') {
                     switch (account[0]) {
                         case '@':
                             var userid = account.substr(1);
-                            console.log("Userid for twitter fetch is:" + userid);
                             cb.__call(
                                 "statuses_userTimeline",
                                 "id=" + userid + "&count=" + options.twitter.limit,
@@ -298,35 +284,16 @@ if (typeof Object.create !== 'function') {
                     getPosts: function (json) {
                         if (json) {
                             if (json['httpstatus'] == 404 || json['httpstatus'] == 401) {
-                                console.log("HTTP NOT FINDED");
                                 //posts_to_load_count -= 1;
                                 posts_to_load_count -= options.twitter.limit;
-                                console.log("posts_to_load decremented to: " + posts_to_load_count);
                                 pages_not_found += 1;
-                                console.log("Pages not found: " + pages_not_found);
                                 var post = new SocialFeedPost('twitter', null);
-                                console.log("Calling push data for 404 or 401");
                                 post.pushData();
                                 return;
                             }
-                            console.log("JSON size: " + json.length);
 
-                            // if (json['httpstatus'] == 401) {
-                            //     console.log("HTTP Forbotten");
-                            //     posts_to_load_count -= 1;
-                            //     console.log("posts_to_load decremented to: " + posts_to_load_count);
-                            //     pages_fobidden += 1;
-                            //     console.log("Pages forbidden: " + pages_forbidden);
-                            //     var post = new SocialFeedPost('twitter', null);
-                            //     post.pushData();
-                            // }
-
-                            str = JSON.stringify(json, null, 4);
-                            //console.log(str);
                             if (json.length < options.twitter.limit) {
-                                console.log(posts_to_load_count);
                                 posts_to_load_count -= (options.twitter.limit - json.length);
-                                console.log(posts_to_load_count);
                             }
 
                             $.each(json, function () {
@@ -335,9 +302,7 @@ if (typeof Object.create !== 'function') {
                                 post.pushData();
                             });
                         } else {
-                            console.log("No json from twitter");
                             posts_to_load_count -= 1;
-                            console.log("posts_to_load decremented to: " + posts_to_load_count);
                         }
                     },
                     unifyPostData: function (element) {
@@ -556,7 +521,6 @@ if (typeof Object.create !== 'function') {
                     return options.instagram.access_type;
                 },
                 getData: function (account) {
-                    console.log("Instagram getData...");
                     var url;
 
                     // API endpoint URL depends on which authentication type we're using.
@@ -564,7 +528,6 @@ if (typeof Object.create !== 'function') {
                         var authTokenParams = options.instagram.access_type + '=' + options.instagram[options.instagram.access_type];
                     }
 
-                    console.log("Switching on " + account[0] + " (" + account +")");
                     switch (account[0]) {
                         case '@':
                             var username = account.substr(1);
@@ -585,9 +548,6 @@ if (typeof Object.create !== 'function') {
                 },
                 utility: {
                     getImages: function (json) {
-                        console.log("instagram getIMages...");
-                        str = JSON.stringify(json, null, 4);
-                        console.log(str);
                         if (json.data) {
                             if (json.data.length < options.instagram.limit)
                                 posts_to_load_count -= options.instagram.limit - json.data.length;
@@ -598,14 +558,11 @@ if (typeof Object.create !== 'function') {
                         }
                     },
                     getUsers: function (json) {
-                        console.log("instagram get users");
-                        str = JSON.stringify(json, null, 4);
                         if(json['status'] == 404) {
                             posts_to_load_count -= options.instagram.limit;
-                            console.log("posts_to_load_count: " + posts_to_load_count);
                             return;
                         }
-                        console.log(str);
+
                         // API endpoint URL depends on which authentication type we're using.
                         if (options.instagram.access_type !== 'undefined') {
                             var authTokenParams = options.instagram.access_type + '=' + options.instagram[options.instagram.access_type];
@@ -838,7 +795,6 @@ if (typeof Object.create !== 'function') {
                 utility: {
 
                     getPosts: function (json) {
-                        console.log(json);
                         if (json.query.count < options.rss.limit)
                             posts_to_load_count -= options.rss.limit - json.query.count;
                         if (json.query.count > 0) {
@@ -888,7 +844,6 @@ if (typeof Object.create !== 'function') {
                 datatype: 'json',
 
                 getData: function(url) {
-                    console.log("In youtube getdata");
                     var limit = options.youtube.limit,
                         yql = encodeURIComponent('select entry FROM feednormalizer where url=\'' + url + '\' AND output=\'atom_1.0\' | truncate(count=' + limit + ')' ),
                         request_url = Feed.youtube.api + yql + '&format=json&callback=?';
@@ -898,38 +853,25 @@ if (typeof Object.create !== 'function') {
                 utility: {
 
                     getPosts: function(json) {
-                        console.log("In youtube getPosts....");
 
                         if(!json.query.meta.url.status.startsWith('2')) {
                             var post = new SocialFeedPost('youtube', null);
                             posts_to_load_count -= options.youtube.limit;
-                            console.log("Youtube fetch failed, decremented posts_to_load by " + options.youtube.limit + " and it's now " + posts_to_load_count);
                             post.pushData(); // called just in case this is the last entry, we want to trigger rendering, ugly hack!
                             return;
                         }
 
-                        // str = JSON.stringify(json, null, 4);
-                        // console.log(str);
-
-                        console.log("JSON Size: " + json.query.count);
-
                         if (json.query.count < options.youtube.limit) {
-                            console.log("YouTube returned less results than limit, decrementing...");
-                            console.log(posts_to_load_count);
                             posts_to_load_count -= (options.youtube.limit - json.query.count);
-                            console.log(posts_to_load_count);
                         }
 
                         some_count += json.query.count;
-                        console.log("SomeCount: " + some_count + " %@%@$%#$%#$%#$%#$%#$%#");
 
                         if (json.query.count > 0 ){
                             $.each(json.query.results.feed, function(index, element) {
                                 var post = new SocialFeedPost('youtube', Feed.youtube.utility.unifyPostData(element));
                                 post.pushData();
                             });
-                        } else {
-                            console.log("Json with no results?  What?......???/");
                         }
                     },
 
