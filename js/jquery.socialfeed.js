@@ -1,7 +1,6 @@
 if (typeof Object.create !== 'function') {
     Object.create = function (obj) {
         function F() {}
-
         F.prototype = obj;
         return new F();
     };
@@ -9,7 +8,6 @@ if (typeof Object.create !== 'function') {
 
 (function ($, window, document, undefined) {
     $.fn.socialfeed = function (_options) {
-
 
         var defaults = {
             plugin_folder: '', // a folder in which the plugin is located (with a slash in the end)
@@ -39,8 +37,6 @@ if (typeof Object.create !== 'function') {
                 if (options[network]) {
                     if (options[network].accounts) {
                         posts_to_load_count += options[network].limit * options[network].accounts.length;
-                        console.log("posts_to_load_count[" + network + ": " + posts_to_load_count);
-                        console.log("    " + options[network].limit + " " + options[network].accounts.length);
                     } else if (options[network].urls) {
                         posts_to_load_count += options[network].limit * options[network].urls.length;
                     } else {
@@ -65,7 +61,6 @@ if (typeof Object.create !== 'function') {
 
         function renderAll() {
             $.each(render_array, function (i, val) {
-                console.log(val.social_network + ": " + val.author_name + " " + val.dt_create);
                 render(val);
             });
 
@@ -193,7 +188,6 @@ if (typeof Object.create !== 'function') {
                 if(this.content != null) {
                     loaded_post_count++;
                 }
-                console.log("pushData: loaded_post_count: " + loaded_post_count + " posts_to_load_count: " + posts_to_load_count);
                 if (loaded_post_count == posts_to_load_count) {
 
                     // sort array
@@ -216,16 +210,13 @@ if (typeof Object.create !== 'function') {
                                 //loaded[network] = 0;
                                 options[network].accounts.forEach(function (account) {
                                     //loaded[network]++;
-                                    console.log("Calling get data for " + network + ":" + account);
                                     Feed[network].getData(account);
                                 });
                             } else if (options[network].urls) {
                                 options[network].urls.forEach(function (url) {
-                                    console.log("Calling get data for " + network + ":" + url);
                                     Feed[network].getData(url);
                                 });
                             } else {
-                                console.log("Calling get data for " + network);
                                 Feed[network].getData();
                             }
                         }
@@ -253,7 +244,6 @@ if (typeof Object.create !== 'function') {
                 api: 'http://api.tweecool.com/',
 
                 getData: function (account) {
-                    console.log("Called twitter:getData");
                     var cb = new Codebird();
                     cb.setConsumerKey(options.twitter.consumer_key, options.twitter.consumer_secret);
 
@@ -265,7 +255,6 @@ if (typeof Object.create !== 'function') {
                     switch (account[0]) {
                         case '@':
                             var userid = account.substr(1);
-                            console.log("Userid for twitter fetch is:" + userid);
                             cb.__call(
                                 "statuses_userTimeline",
                                 "id=" + userid + "&count=" + options.twitter.limit,
@@ -290,34 +279,18 @@ if (typeof Object.create !== 'function') {
                 utility: {
                     getPosts: function (json) {
                         if (json) {
+                            // If twitter returns a 404 or 401, decrement posts_to_load count, and create a null
+                            // SocialFeedPost
                             if (json['httpstatus'] == 404 || json['httpstatus'] == 401) {
-                                console.log("HTTP NOT FINDED");
                                 posts_to_load_count -= 1;
-                                console.log("posts_to_load decremented to: " + posts_to_load_count);
                                 pages_not_found += 1;
-                                console.log("Pages not found: " + pages_not_found);
                                 var post = new SocialFeedPost('twitter', null);
-                                console.log("Calling push data for 404 or 401");
                                 post.pushData();
                                 return;
                             }
 
-                            // if (json['httpstatus'] == 401) {
-                            //     console.log("HTTP Forbotten");
-                            //     posts_to_load_count -= 1;
-                            //     console.log("posts_to_load decremented to: " + posts_to_load_count);
-                            //     pages_fobidden += 1;
-                            //     console.log("Pages forbidden: " + pages_forbidden);
-                            //     var post = new SocialFeedPost('twitter', null);
-                            //     post.pushData();
-                            // }
-
-                            str = JSON.stringify(json, null, 4);
-                            //console.log(str);
                             if (json.length < options.twitter.limit) {
-                                console.log(posts_to_load_count);
                                 posts_to_load_count -= (options.twitter.limit - json.length);
-                                console.log(posts_to_load_count);
                             }
 
                             $.each(json, function () {
@@ -328,7 +301,6 @@ if (typeof Object.create !== 'function') {
                         } else {
                             console.log("No json from twitter");
                             posts_to_load_count -= 1;
-                            console.log("posts_to_load decremented to: " + posts_to_load_count);
                         }
                     },
                     unifyPostData: function (element) {
