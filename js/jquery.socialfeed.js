@@ -430,6 +430,10 @@ if (typeof Object.create !== 'function') {
                                 var post = new SocialFeedPost('facebook', Feed.facebook.utility.unifyPostData(element));
                                 post.pushData();
                             });
+                        } else {
+                            posts_to_load_count -= options.facebook.limit;
+                            var post = new SocialFeedPost('facebook', null);
+                            post.pushData();
                         }
                     },
                     unifyPostData: function (element) {
