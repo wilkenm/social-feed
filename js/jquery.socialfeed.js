@@ -23,7 +23,8 @@ if (typeof Object.create !== 'function') {
         var options = $.extend(defaults, _options),
             container = $(this),
             template,
-            social_networks = ['facebook', 'instagram', 'vk', 'google', 'blogspot', 'twitter', 'pinterest', 'rss'],
+            social_networks = ['facebook', 'instagram', 'vk', 'google', 'blogspot', 'twitter', 'pinterest', 'rss', 'youtube'],
+            some_count = 0,
             posts_to_load_count = 0,
             loaded_post_count = 0,
             render_array = [],
@@ -51,6 +52,7 @@ if (typeof Object.create !== 'function') {
         }
 
         calculatePostsToLoadCount();
+        console.log("Post PostsToLoadCount: " + posts_to_load_count);
 
         function fireCallback() {
             var fire = true;
@@ -64,6 +66,8 @@ if (typeof Object.create !== 'function') {
         }
 
         function renderAll() {
+            console.log("RenderAll, render_array: " + render_array.length);
+            console.log("render_array: " + render_array);
             $.each(render_array, function (i, val) {
                 console.log(val.social_network + ": " + val.author_name + " " + val.dt_create);
                 render(val);
@@ -131,10 +135,12 @@ if (typeof Object.create !== 'function') {
 
         var Utility = {
             request: function (url, callback) {
+                console.log("Utility.request: " + url);
                 $.ajax({
                     url: url,
                     dataType: 'jsonp',
-                    success: callback
+                    success: callback,
+                    error: callback
                 });
             },
             get_request: function (url, callback) {
@@ -188,6 +194,7 @@ if (typeof Object.create !== 'function') {
 
         SocialFeedPost.prototype = {
             pushData: function () {
+                console.log("SocialFeedPost.pushData: " + loaded_post_count + " posts_to_load_count: " + posts_to_load_count);
                 render_array.push(this.content);
 
                 if(this.content != null) {
@@ -216,16 +223,16 @@ if (typeof Object.create !== 'function') {
                                 //loaded[network] = 0;
                                 options[network].accounts.forEach(function (account) {
                                     //loaded[network]++;
-                                    console.log("Calling get data for " + network + ":" + account);
+                                    console.log("Calling get data for accounts" + network + ": " + account);
                                     Feed[network].getData(account);
                                 });
                             } else if (options[network].urls) {
                                 options[network].urls.forEach(function (url) {
-                                    console.log("Calling get data for " + network + ":" + url);
+                                    console.log("Calling get data for urls" + network + ": " + url);
                                     Feed[network].getData(url);
                                 });
                             } else {
-                                console.log("Calling get data for " + network);
+                                console.log("Calling get data for: " + network);
                                 Feed[network].getData();
                             }
                         }
@@ -549,6 +556,7 @@ if (typeof Object.create !== 'function') {
                     return options.instagram.access_type;
                 },
                 getData: function (account) {
+                    console.log("Instagram getData...");
                     var url;
 
                     // API endpoint URL depends on which authentication type we're using.
@@ -556,6 +564,7 @@ if (typeof Object.create !== 'function') {
                         var authTokenParams = options.instagram.access_type + '=' + options.instagram[options.instagram.access_type];
                     }
 
+                    console.log("Switching on " + account[0] + " (" + account +")");
                     switch (account[0]) {
                         case '@':
                             var username = account.substr(1);
@@ -576,6 +585,9 @@ if (typeof Object.create !== 'function') {
                 },
                 utility: {
                     getImages: function (json) {
+                        console.log("instagram getIMages...");
+                        str = JSON.stringify(json, null, 4);
+                        console.log(str);
                         if (json.data) {
                             if (json.data.length < options.instagram.limit)
                                 posts_to_load_count -= options.instagram.limit - json.data.length;
@@ -586,6 +598,14 @@ if (typeof Object.create !== 'function') {
                         }
                     },
                     getUsers: function (json) {
+                        console.log("instagram get users");
+                        str = JSON.stringify(json, null, 4);
+                        if(json['status'] == 404) {
+                            posts_to_load_count -= options.instagram.limit;
+                            console.log("posts_to_load_count: " + posts_to_load_count);
+                            return;
+                        }
+                        console.log(str);
                         // API endpoint URL depends on which authentication type we're using.
                         if (options.instagram.access_type !== 'undefined') {
                             var authTokenParams = options.instagram.access_type + '=' + options.instagram[options.instagram.access_type];
@@ -857,6 +877,94 @@ if (typeof Object.create !== 'function') {
                         if (options.show_media && item.thumbnail !== undefined) {
                             post.attachment = '<img class="attachment" src="' + item.thumbnail.url + '" />';
                         }
+                        return post;
+                    }
+                }
+            },
+            youtube : {
+                posts: [],
+                loaded: false,
+                api : 'https://query.yahooapis.com/v1/public/yql?q=',
+                datatype: 'json',
+
+                getData: function(url) {
+                    console.log("In youtube getdata");
+                    var limit = options.youtube.limit,
+                        yql = encodeURIComponent('select entry FROM feednormalizer where url=\'' + url + '\' AND output=\'atom_1.0\' | truncate(count=' + limit + ')' ),
+                        request_url = Feed.youtube.api + yql + '&format=json&callback=?';
+
+                    Utility.request(request_url, Feed.youtube.utility.getPosts);
+                },
+                utility: {
+
+                    getPosts: function(json) {
+                        console.log("In youtube getPosts....");
+
+                        if(!json.query.meta.url.status.startsWith('2')) {
+                            var post = new SocialFeedPost('youtube', null);
+                            posts_to_load_count -= options.youtube.limit;
+                            console.log("Youtube fetch failed, decremented posts_to_load by " + options.youtube.limit + " and it's now " + posts_to_load_count);
+                            post.pushData(); // called just in case this is the last entry, we want to trigger rendering, ugly hack!
+                            return;
+                        }
+
+                        // str = JSON.stringify(json, null, 4);
+                        // console.log(str);
+
+                        console.log("JSON Size: " + json.query.count);
+
+                        if (json.query.count < options.youtube.limit) {
+                            console.log("YouTube returned less results than limit, decrementing...");
+                            console.log(posts_to_load_count);
+                            posts_to_load_count -= (options.youtube.limit - json.query.count);
+                            console.log(posts_to_load_count);
+                        }
+
+                        some_count += json.query.count;
+                        console.log("SomeCount: " + some_count + " %@%@$%#$%#$%#$%#$%#$%#");
+
+                        if (json.query.count > 0 ){
+                            $.each(json.query.results.feed, function(index, element) {
+                                var post = new SocialFeedPost('youtube', Feed.youtube.utility.unifyPostData(element));
+                                post.pushData();
+                            });
+                        } else {
+                            console.log("Json with no results?  What?......???/");
+                        }
+                    },
+
+                    unifyPostData: function(element){
+
+                        var item = element;
+
+                        if ( element.entry !== undefined ){
+                            item = element.entry;
+                        }
+
+                        var post = {};
+
+                        post.id = '"' + item.id + '"';
+                        post.dt_create= moment(item.published, 'YYYY-MM-DDTHH:mm:ssZ', 'en');
+
+                        post.author_link = '';
+                        post.author_picture = 'http://a1.mzstatic.com/us/r30/Purple3/v4/d6/e4/12/d6e41207-d0ee-96c5-6f9d-e789c6e4caf7/icon256.png';
+                        post.author_name = '';
+                        if( item.creator !== undefined ){
+                            post.author_name = item.creator;
+                        }
+                        post.message = item.title;
+                        post.description = '';
+                        if( item.summary !== undefined ){
+                            post.description = Utility.stripHTML(item.summary.content);
+                        }
+                        post.social_network = 'youtube';
+                        post.link = item.link.href;
+
+                        post.attachment = '<a href="' + item.link.href + '" target="_blank"><img class="video-container" src="http://img.youtube.com/vi/' + item.id.replace('yt:video:', "") + '/0.jpg" /></a>';
+
+                        // var str = item.id;
+                        // var idVideo = str.replace("yt:video:", "");
+                        // post.attachment = '<div class="video-container"><iframe type="text/html" width="560" height="349" src="https://www.youtube.com/embed/' + idVideo + '" frameborder="0" allowfullscreen></iframe></div>';
                         return post;
                     }
                 }
